@@ -5,6 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 from scraper import search_jumia
+from extractor import standardize_search_query
 
 # Load environment variables from .env file
 load_dotenv()
@@ -49,16 +50,27 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Join the arguments to form the search query
-    query = " ".join(context.args)
+    raw_query = " ".join(context.args)
     
     # Send the initial loading message
     loading_message = await update.message.reply_text(
-        f"🔍 Infiltrating Jumia for '{query}'...\nAnalyzing prices and filtering trusted vendors... ⏳"
+        f"⚙️ Optimizing search query: '{raw_query}'... ⏳"
     )
     
-    # Run the scraper
+    # Run the Gemini AI query standardizer in a background thread
+    import asyncio
+    cleaned_query = await asyncio.to_thread(standardize_search_query, raw_query)
+    
+    # Log the AI correction for monitoring
+    logger.info(f"Raw: {raw_query} | AI Cleaned: {cleaned_query}")
+    
+    await loading_message.edit_text(
+        f"🔍 Infiltrating Jumia for '{cleaned_query}'...\nAnalyzing prices and filtering trusted vendors... ⏳"
+    )
+    
+    # Run the scraper using the CLEANED query
     try:
-        result = await search_jumia(query)
+        result = await search_jumia(cleaned_query)
         
         if "error" in result:
             # Edit the loading message with the error
@@ -72,7 +84,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Format the success message
             success_text = (
-                f"📊 *Market Analysis for {query}*\n"
+                f"📊 *Market Analysis for {cleaned_query}*\n"
                 f"Found {result['valid_results_count']} authentic listings.\n"
                 f"📉 Price Range: ₦{result['range_min']} - ₦{result['range_max']}\n\n"
                 f"🔥 *Best Trusted Deal:*\n"
@@ -84,7 +96,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Create Inline Keyboard for tracking
             # We slice the query to ensure callback_data stays within Telegram's 64 byte limit
             keyboard = [
-                [InlineKeyboardButton("🔔 Track Price Drops", callback_data=f"track_{query[:20]}")]
+                [InlineKeyboardButton("🔔 Track Price Drops", callback_data=f"track_{cleaned_query[:20]}")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             

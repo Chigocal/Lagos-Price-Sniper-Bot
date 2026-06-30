@@ -1,0 +1,39 @@
+# 🚀 Lagos Price Sniper Bot - Progress Summary
+**Date:** June 26, 2026
+
+Welcome back! Here is a complete breakdown of everything we have built so far for your Telegram Jumia Price Sniper Bot. 
+
+## 🏗️ Core Architecture
+The project is currently on the `dev` branch and is split into three main, highly modular components: the Telegram Controller, the Playwright Scraper, and the PostgreSQL Database Engine.
+
+### 1. The Telegram Bot (`main.py`)
+Built using the modern `python-telegram-bot` (v20+) async framework.
+- **Commands Available:** `/start`, `/help`, and `/search <product>`.
+- **Dashboard UI:** When a user searches for an item, the bot formats a beautiful Markdown dashboard displaying the Total Listings Found, Cheapest Price, Average Price, and Highest Price.
+- **Interactive UI:** Includes interactive Inline Buttons (e.g., "🔔 Track Price Drops") for user engagement.
+- **Fail-safes:** If the database goes offline, the bot seamlessly falls back to a raw scraper output so the user experience never breaks.
+
+### 2. The Playwright Scraper (`scraper.py`)
+A headless, asynchronous web scraper built specifically for Jumia Nigeria.
+- **Stealth & Speed:** Uses custom User-Agents and strict timeouts to fetch dynamic product cards without getting blocked.
+- **Smart Filtering:** Aggressively filters out suspiciously cheap items (to avoid mistaking a phone case for a phone).
+- **Trust Verification:** Scans the HTML DOM for "Official Store" or "Jumia Express" badges, prioritizing trusted vendors for the absolute best deal.
+- **Data Handoff:** Silently passes the scraped `name`, `price`, and `link` to the database engine in the background without blocking the Telegram UI.
+
+### 3. The PostgreSQL Data Engine (`database.py`)
+The MVP persistence layer, connected to your local `price_sniper_bot` database using `psycopg2`.
+- **Advanced Category Router (`normalize_name`):** 
+  - Automatically detects if a product is a Laptop, Shoe, Appliance, or General item.
+  - Dynamically extracts exactly what matters (e.g., grabbing "512gb" for laptops, or "size 42" for shoes).
+  - Automatically identifies and permanently ignores irrelevant accessories (chargers, pouches, screen protectors) to prevent database bloat.
+- **Transactional Safety:** Uses `ON CONFLICT DO NOTHING` and `ON CONFLICT DO UPDATE` to ensure your database never crashes from duplicate entries.
+- **Market Analysis (`get_product_analysis`):** Runs advanced SQL `JOIN` queries across the `listings` and `price_history` tables to calculate aggregate pricing data (Min, Max, Avg) for the Telegram dashboard.
+
+### 4. Extra Tools (`extractor.py`)
+- We previously built an AI-powered string extractor using the Gemini API. It features advanced REST API calls with SSL-bypass mechanisms and automatic retry loops to handle Google server outages. (Currently sidelined while we focus on the raw DB pipeline MVP).
+
+## 🚀 What's Next?
+Whenever you are ready to jump back in, here are a few things we can tackle next:
+1. **Cron Jobs / Schedulers:** Actually making the "Track Price Drops" button work by running a background loop that checks prices every 12 hours and alerts the user.
+2. **Database Verification:** Writing a few quick SQL queries to ensure the data is looking good in your PostgreSQL tables.
+3. **Deployment:** Getting the bot off your local machine and onto a cloud server (like Heroku, DigitalOcean, or Render) so it runs 24/7!
