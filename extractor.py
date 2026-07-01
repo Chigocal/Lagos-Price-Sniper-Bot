@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 import logging
 from dotenv import load_dotenv
@@ -6,10 +7,29 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+CACHE_FILE = "search_cache.json"
+
+def load_cache():
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, 'r') as file:
+            return json.load(file)
+    return {}
+
+def save_cache(cache_dict):
+    with open(CACHE_FILE, 'w') as file:
+        json.dump(cache_dict, file, indent=4)
+
 def standardize_search_query(raw_query: str) -> str:
     """
     Uses Gemini AI as an AI Pre-Processor to clean up misspelled user search queries.
     """
+    cache_key = raw_query.lower().strip()
+    cache = load_cache()
+    
+    if cache_key in cache:
+        print("Cache Hit! Skipping Gemini API...")
+        return cache[cache_key]
+        
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         logger.error("GEMINI_API_KEY not found in environment variables.")
@@ -47,6 +67,9 @@ def standardize_search_query(raw_query: str) -> str:
         
         # Sometimes AI might add quotes or extra spaces, strip them
         clean_text = clean_text.strip('\'" \n')
+        
+        cache[cache_key] = clean_text
+        save_cache(cache)
         
         return clean_text
     except Exception as e:

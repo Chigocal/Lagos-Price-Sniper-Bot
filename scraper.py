@@ -12,6 +12,7 @@ def clean_price(price_str: str) -> int:
 async def search_jumia(query: str) -> dict:
     """
     Searches Jumia Nigeria for the query, filters results, and extracts market analysis.
+    Lightning-fast rewritten extraction engine.
     """
     url = f"https://www.jumia.com.ng/catalog/?q={query}"
     
@@ -23,10 +24,18 @@ async def search_jumia(query: str) -> dict:
 
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            # 1. Ultra-Fast Browser Launch
+            browser = await p.chromium.launch(
+                headless=True,
+                args=['--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage']
+            )
             context = await browser.new_context(user_agent=user_agent)
             page = await context.new_page()
+            
+            # 2. Aggressive Network Blocking
+            await page.route("**/*", lambda route: route.abort() if route.request.resource_type in ["image", "stylesheet", "font", "media"] else route.continue_())
 
+            # 3. Navigation Strategy
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
             
             try:
@@ -49,42 +58,54 @@ async def search_jumia(query: str) -> dict:
                 "bumper", "silicone", "tpu", "strap", "band", "lens"
             ]
             
-            for card in product_cards[:20]: # Check up to 20 to find 5-10 good ones
-                name_element = await card.query_selector(".info .name")
-                name = await name_element.inner_text() if name_element else "Unknown Name"
-                
-                a_tag = await card.query_selector("a.core")
-                if not a_tag:
-                    continue
+            # 4. Optimize the Extraction Loop - Parallel Extraction without inner_html
+            async def process_card(card):
+                try:
+                    name_element = await card.query_selector(".info .name")
+                    name = await name_element.inner_text() if name_element else "Unknown Name"
                     
-                href = await a_tag.get_attribute("href")
-                link = f"https://www.jumia.com.ng{href}" if href and href.startswith("/") else (href or "")
-                
-                price_element = await card.query_selector(".info .prc")
-                price_str = await price_element.inner_text() if price_element else "0"
-                price_val = clean_price(price_str)
-                
-                if price_val == 0:
-                    continue
+                    a_tag = await card.query_selector("a.core")
+                    if not a_tag:
+                        return None
+                        
+                    href = await a_tag.get_attribute("href")
+                    link = f"https://www.jumia.com.ng{href}" if href and href.startswith("/") else (href or "")
                     
-                # Check for Jumia Express or Official Store badges
-                # Jumia uses bdg classes or img tags for badges
-                card_html = await card.inner_html()
-                is_trusted = "Official Store" in card_html or "Express" in card_html
+                    price_element = await card.query_selector(".info .prc")
+                    price_str = await price_element.inner_text() if price_element else "0"
+                    price_val = clean_price(price_str)
+                    
+                    if price_val == 0:
+                        return None
+                        
+                    # Check for trusted badges efficiently using text content (no inner_html)
+                    card_text = await card.inner_text()
+                    is_trusted = "Official Store" in card_text or "Express" in card_text
+                    
+                    return {
+                        "name": name.strip(),
+                        "price_str": price_str.strip(),
+                        "price_val": price_val,
+                        "link": link,
+                        "is_trusted": is_trusted
+                    }
+                except Exception:
+                    return None
+
+            # Execute the targeted query_selectors on all cards concurrently!
+            tasks = [process_card(card) for card in product_cards[:20]]
+            processed_items = await asyncio.gather(*tasks)
+            
+            # Filter and collect the successfully extracted items
+            for item in processed_items:
+                if not item:
+                    continue
                 
-                item_data = {
-                    "name": name.strip(),
-                    "price_str": price_str.strip(),
-                    "price_val": price_val,
-                    "link": link,
-                    "is_trusted": is_trusted
-                }
+                all_results.append(item)
                 
-                all_results.append(item_data)
-                
-                name_lower = name.lower()
+                name_lower = item["name"].lower()
                 if not any(keyword in name_lower for keyword in exclude_keywords):
-                    valid_results.append(item_data)
+                    valid_results.append(item)
                     if len(valid_results) >= 10:
                         break
                         
@@ -98,7 +119,6 @@ async def search_jumia(query: str) -> dict:
                 return {"error": "Could not extract any valid product details."}
                 
             # Further filtering: Remove suspiciously cheap items if we have multiple results
-            # E.g., if max price is 200k, and something is 3k, it's probably a case we missed.
             if len(valid_results) > 1:
                 max_price = max(item["price_val"] for item in valid_results)
                 # Keep items that are at least 10% of the max price
@@ -111,7 +131,6 @@ async def search_jumia(query: str) -> dict:
             range_max = f"{max(prices):,}"
             
             # Prioritize best match: Trusted and Lowest price
-            # Sort by trusted first (True is better), then by price (lower is better)
             best_match = sorted(valid_results, key=lambda x: (not x["is_trusted"], x["price_val"]))[0]
             
             return {

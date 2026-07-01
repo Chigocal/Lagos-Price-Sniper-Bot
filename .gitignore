@@ -3,6 +3,7 @@
 
 # Local Database / State files
 database.json
+search_cache.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
