@@ -1,58 +1,87 @@
 # 🎯 Jumia Price Sniper Bot
 
-An advanced, asynchronous Telegram AI bot engineered to help users find the absolute best deals on Jumia Nigeria. Built with `python-telegram-bot` and `playwright`, it automatically scrapes search results, intelligently filters out irrelevant accessories (like phone cases when you're looking for a phone), and presents a clean, Markdown-formatted market analysis directly in Telegram.
+Telegram bot that scrapes Jumia Nigeria for the best deals, filters out accessories, verifies trusted vendors, and sends price-drop alerts.
 
 ## ✨ Features
 
-- **Asynchronous Scraping:** Uses Playwright to spin up a headless Chromium instance, ensuring dynamic content from Jumia loads perfectly.
-- **Intelligent Filtering System:** Dynamically calculates maximum prices to exclude suspiciously cheap outliers (e.g., ₦5,000 cases mixed into ₦500,000 phone results). It also features keyword-based filtering to ignore cases, screen protectors, and pouches.
-- **Trust Verification:** Scans the DOM for Jumia's "Official Store" and "Express" badges, prioritizing trusted vendors for the final recommendation.
-- **Market Analysis UI:** Returns the total count of valid authentic listings, the market price range (Min-Max), and highlighting the absolute best deal.
-- **Interactive Buttons:** Uses Telegram's Inline Keyboards to allow users to subscribe to price drops for their searched items.y
+- 🧠 **AI Query Correction** — Gemini 2.5 Flash fixes typos and standardizes search queries
+- 🛡️ **Smart Filtering** — Removes accessories (cases, screen protectors, etc.) and price outliers
+- ✅ **Trust Verification** — Detects "Official Store" and "Express" badges, prioritizes trusted vendors
+- 📊 **Market Analysis** — Returns listing count, price range, and the best trusted deal
+- 🔔 **Price Tracking** — Click "Track Price Drops" to get notified when prices fall below your alert threshold
+- 🚀 **Persistent Browser** — Playwright Chromium stays alive across searches (much faster)
+- ⚡ **Parallel Extraction** — Product cards scraped concurrently with `asyncio.gather`
+- 💾 **Search Cache** — Gemini results cached to disk so repeated queries skip the API call
 
 ## 🛠️ Requirements
 
-- Python 3.8+
-- A Telegram Bot Token from [@BotFather](https://t.me/BotFather)
+- Python 3.11+
+- Telegram Bot Token from [@BotFather](https://t.me/BotFather)
+- (Optional) Gemini API key for query correction
 
-### Libraries Used
-- `python-telegram-bot` (v20+)
-- `playwright`
-- `python-dotenv`
+## ⚙️ Setup
 
-## 🚀 Installation & Setup
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
 
-1. **Clone the repository** (or download the files).
-2. **Install the required Python packages:**
-   ```bash
-   pip install python-telegram-bot playwright python-dotenv
-   ```
-3. **Install the Playwright browser binaries:**
-   ```bash
-   playwright install chromium
-   ```
-4. **Set up your Environment Variables:**
-   - Create a file named `.env` in the root directory.
-   - Add your Telegram token:
-     ```env
-     TELEGRAM_TOKEN=your_bot_token_here
-     ```
+Create a `.env` file:
+
+```env
+TELEGRAM_TOKEN=your_bot_token_here
+GEMINI_API_KEY=your_gemini_key_here
+```
 
 ## 🎮 Usage
 
-Start the bot engine by running:
 ```bash
-python main.py
+python -m src.main
 ```
 
-Once running, head over to your bot in Telegram and use the following commands:
-- `/start` - Initializes the bot and displays the AI welcome message.
-- `/help` - Brings up the user manual and feature instructions.
-- `/search <product name>` - Triggers the web scraper to run a deep analysis on Jumia (e.g., `/search iPhone 15 Pro`).
+| Command | Description |
+|---------|-------------|
+| `/start` | Welcome message |
+| `/help`  | Command reference |
+| `/search iPhone 15` | Search and analyze Jumia listings |
 
-## 📁 File Structure
+After a search, click **Track Price Drops** to save the product. The bot will alert you if the price drops below the tracked amount.
 
-- `main.py` - The primary Telegram Bot controller. Handles routing, UI rendering, and user interactions.
-- `scraper.py` - The Playwright engine. Handles the headless browser automation, DOM parsing, and price mathematics.
-- `.env` - (Not included in repo) Your secret keys.
-- `.gitignore` - Prevents sensitive data and bloated caches from being pushed to version control.
+## 📁 Project Layout
+
+```
+src/
+├── main.py               # Entry point
+├── config.py             # pydantic-settings config from .env
+├── bot/
+│   ├── app.py            # Bot setup + polling + recurring jobs
+│   └── handlers.py       # Command + callback handlers
+├── scraper/
+│   ├── client.py         # Persistent Playwright browser
+│   ├── jumia.py          # Jumia search + price extraction
+│   └── cache.py          # Gemini query cache (JSON)
+├── services/
+│   ├── search.py         # Orchestrator (clean → scrape → return)
+│   ├── query_cleaner.py  # Gemini AI integration
+│   └── price_checker.py  # Background price monitoring
+└── database/
+    ├── interface.py      # Abstract database interface
+    ├── json_db.py        # JSON file implementation
+    └── postgres.py       # PostgreSQL stub (ready to swap)
+data/
+├── database.json         # Tracked products
+└── search_cache.json     # Gemini cache
+tests/                    # pytest test suite
+```
+
+## 🚨 Price Alerts
+
+The bot checks every 6 hours. If the current Jumia price is lower than your tracked alert price, you'll receive a message like:
+
+> Price Drop Alert!
+> Redmi 13C
+> Was: 190,000
+> Now: 150,000
+> [View on Jumia](...)
+
+The alert price updates to the new lower price so you're only notified about fresh drops.
