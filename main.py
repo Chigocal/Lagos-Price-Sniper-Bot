@@ -1,5 +1,4 @@
 import os
-import time
 import json
 import logging
 from dotenv import load_dotenv
@@ -69,9 +68,6 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Join the arguments to form the search query
     raw_query = " ".join(context.args)
     
-    # Start the performance timer
-    start_time = time.perf_counter()
-    
     # Send the initial loading message
     loading_message = await update.message.reply_text(
         f"⚙️ Optimizing search query: '{raw_query}'... ⏳"
@@ -79,9 +75,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Run the Gemini AI query standardizer in a background thread
     import asyncio
-    gemini_start = time.perf_counter()
     cleaned_query = await asyncio.to_thread(standardize_search_query, raw_query)
-    gemini_time = time.perf_counter() - gemini_start
     
     # Log the AI correction for monitoring
     logger.info(f"Raw: {raw_query} | AI Cleaned: {cleaned_query}")
@@ -91,10 +85,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     # Run the scraper using the CLEANED query
-    scraper_start = time.perf_counter()
     try:
         result = await search_jumia(cleaned_query)
-        scraper_time = time.perf_counter() - scraper_start
         
         if "error" in result:
             # Edit the loading message with the error
@@ -106,13 +98,9 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Escape brackets in the name to prevent markdown link breaking
             clean_name = result['best_match_name'].replace('[', '(').replace(']', ')')
             
-            # Calculate elapsed time
-            total_time = time.perf_counter() - start_time
-            
             # Format the success message
             success_text = (
                 f"📊 *Market Analysis for {cleaned_query}*\n"
-                f"⏱️ *Speed:* AI {gemini_time:.2f}s | Scraper {scraper_time:.2f}s | Total {total_time:.2f}s\n"
                 f"Found {result['valid_results_count']} authentic listings.\n"
                 f"📉 Price Range: ₦{result['range_min']} - ₦{result['range_max']}\n\n"
                 f"🔥 *Best Trusted Deal:*\n"
