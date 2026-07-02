@@ -8,5 +8,5 @@ pip install -r requirements.txt
 # Create the data directory for your JSON files
 mkdir -p data
 
-# Install ONLY the Chromium browser (No apt-get or system deps)
-playwright install chromium
+# Force install ALL playwright browsers to ensure the headless shell is included
+playwright install
