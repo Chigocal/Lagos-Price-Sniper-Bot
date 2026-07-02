@@ -2,6 +2,7 @@ import asyncio
 import re
 
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright_stealth import stealth_async
 
 EXCLUDE_KEYWORDS = [
     "case", "cover", "screen protector", "glass", "pouch",
@@ -71,6 +72,7 @@ async def search_jumia(query: str, browser) -> dict:
     )
     try:
         page: Page = await context.new_page()
+        await stealth_async(page)
         
         # Hide webdriver flag to bypass basic bot protection
         await page.add_init_script(
@@ -87,13 +89,15 @@ async def search_jumia(query: str, browser) -> dict:
 
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-        except Exception:
-            return {"error": "Failed to load Jumia search page. Check your connection."}
-
-        try:
             await page.wait_for_selector("article.prd", timeout=15000)
         except PlaywrightTimeoutError:
-            return {"error": "Timeout waiting for Jumia products to load."}
+            screenshot_bytes = await page.screenshot(full_page=True)
+            return {
+                "error": "Timeout waiting for Jumia products to load.",
+                "screenshot": screenshot_bytes
+            }
+        except Exception:
+            return {"error": "Failed to load Jumia search page. Check your connection."}
 
         product_cards = await page.query_selector_all("article.prd")
         if not product_cards:

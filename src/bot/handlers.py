@@ -62,6 +62,11 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"\u274c *Failed to snipe product:*\n{result['error']}",
             parse_mode=ParseMode.MARKDOWN,
         )
+        if "screenshot" in result:
+            await update.message.reply_photo(
+                photo=result["screenshot"],
+                caption="\U0001f4f8 Debug: Here is what Jumia showed me before timing out."
+            )
         return
 
     clean_name = result["best_match_name"].replace("[", "(").replace("]", ")")
