@@ -16,7 +16,11 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+include = ["src*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests"]
+extraPaths = ["."]

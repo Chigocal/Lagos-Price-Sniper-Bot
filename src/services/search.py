@@ -14,4 +14,6 @@ async def perform_search(raw_query: str) -> dict:
 
     browser = await browser_client.get_browser()
     result = await search_jumia(cleaned_query, browser)
+    if "error" not in result:
+        result["cleaned_query"] = cleaned_query
     return result

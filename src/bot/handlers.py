@@ -1,4 +1,3 @@
-import time
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -43,13 +42,11 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     raw_query = " ".join(context.args)
-    start_time = time.perf_counter()
 
     loading_msg = await update.message.reply_text(
         f"\u2699\ufe0f Optimizing search query: '{raw_query}'... \u23f3"
     )
 
-    gemini_start = time.perf_counter()
     try:
         result = await perform_search(raw_query)
     except Exception as e:
@@ -59,7 +56,6 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN,
         )
         return
-    gemini_time = time.perf_counter() - gemini_start
 
     if "error" in result:
         await loading_msg.edit_text(
@@ -69,16 +65,15 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     clean_name = result["best_match_name"].replace("[", "(").replace("]", ")")
-    total_time = time.perf_counter() - start_time
+    cleaned_query = result.get("cleaned_query", raw_query)
 
     context.user_data.setdefault("searches", {})[raw_query] = {
-        "product": result["best_match_name"],
+        "product": cleaned_query,
         "price": int(result["best_price"].replace(",", "")),
     }
 
     success_text = (
-        f"\U0001f4ca *Market Analysis for {raw_query}*\n"
-        f"\u23f1\ufe0f *Speed:* AI {gemini_time:.2f}s | Total {total_time:.2f}s\n"
+        f"\U0001f4ca *Market Analysis for {cleaned_query}*\n"
         f"Found {result['valid_results_count']} authentic listings.\n"
         f"\U0001f4c9 Price Range: \u20a6{result['range_min']} - \u20a6{result['range_max']}\n\n"
         f"\U0001f525 *Best Trusted Deal:*\n"

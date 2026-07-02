@@ -28,7 +28,8 @@ async def check_prices(context: CallbackContext):
             cleaned = await asyncio.to_thread(standardize_search_query, product)
             result = await search_jumia(cleaned, browser)
             if "error" in result:
-                logger.warning("Price check failed for %s: %s", product, result["error"])
+                # If an item is out of stock or unsearchable, it will timeout. Log it as info instead of a scary warning.
+                logger.info("Price check skipped for '%s': %s", product, result["error"])
                 continue
 
             current_price = int(result["best_price"].replace(",", ""))
