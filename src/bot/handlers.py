@@ -12,6 +12,8 @@ db = JsonDatabase()
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
     welcome = (
         "\U0001f44b *Welcome to the Jumia Price Sniper Bot!*\n\n"
         "I am an advanced AI assistant engineered to help you find the absolute best deals on Jumia Nigeria. "
@@ -22,6 +24,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
     help_text = (
         "\U0001f916 *How to use the Jumia Price Sniper Bot:*\n\n"
         "\U0001f538 `/start` - Displays the welcome message and initializes the bot.\n"
@@ -34,6 +38,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
     if not context.args:
         await update.message.reply_text(
             "\u26a0\ufe0f Please provide a product to search for. Example: `/search iPhone 15`",
@@ -72,10 +78,11 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     clean_name = result["best_match_name"].replace("[", "(").replace("]", ")")
     cleaned_query = result.get("cleaned_query", raw_query)
 
-    context.user_data.setdefault("searches", {})[raw_query] = {
-        "product": cleaned_query,
-        "price": int(result["best_price"].replace(",", "")),
-    }
+    if context.user_data is not None:
+        context.user_data.setdefault("searches", {})[raw_query] = {
+            "product": cleaned_query,
+            "price": int(result["best_price"].replace(",", "")),
+        }
 
     success_text = (
         f"\U0001f4ca *Market Analysis for {cleaned_query}*\n"
@@ -102,14 +109,17 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    if not query or not update.effective_chat:
+        return
+        
     chat_id = str(update.effective_chat.id)
 
     prefix = "track_"
-    if not query.data.startswith(prefix):
+    if not query.data or not query.data.startswith(prefix):
         return
     raw_query_key = query.data[len(prefix):]
 
-    searches = context.user_data.get("searches", {})
+    searches = context.user_data.get("searches", {}) if context.user_data is not None else {}
     matched_key = next((k for k in searches if k.startswith(raw_query_key)), None)
     if not matched_key:
         await query.answer("Search data expired. Please search again.", show_alert=True)
