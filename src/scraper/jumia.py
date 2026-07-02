@@ -65,9 +65,17 @@ async def extract_card_data(card) -> dict | None:
 
 async def search_jumia(query: str, browser) -> dict:
     url = f"https://www.jumia.com.ng/catalog/?q={query}"
-    context = await browser.new_context(user_agent=USER_AGENT)
+    context = await browser.new_context(
+        user_agent=USER_AGENT,
+        extra_http_headers={"Accept-Language": "en-US,en;q=0.9"}
+    )
     try:
         page: Page = await context.new_page()
+        
+        # Hide webdriver flag to bypass basic bot protection
+        await page.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
 
         async def block_aggressively(route, request):
             if request.resource_type in ["image", "stylesheet", "font", "media"]:
@@ -78,7 +86,7 @@ async def search_jumia(query: str, browser) -> dict:
         await page.route("**/*", block_aggressively)
 
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
         except Exception:
             return {"error": "Failed to load Jumia search page. Check your connection."}
 
