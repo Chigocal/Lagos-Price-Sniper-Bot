@@ -1,5 +1,5 @@
-# Use the official Microsoft Playwright image (contains ALL system libraries)
-FROM mcr.microsoft.com/playwright/python:v1.61.0-jammy
+# Use the standard Python lightweight image
+FROM python:3.11-slim
 
 # Set the working directory
 WORKDIR /app

@@ -5,7 +5,6 @@ from telegram.constants import ParseMode
 
 from src.database.json_db import JsonDatabase
 from src.scraper.jumia import search_jumia
-from src.scraper.client import browser_client
 from src.services.query_cleaner import standardize_search_query
 import asyncio
 
@@ -18,15 +17,13 @@ async def check_prices(context: CallbackContext):
     if not all_tracked:
         return
 
-    browser = await browser_client.get_browser()
-
     for chat_id, products in all_tracked.items():
         for entry in list(products):
             product = entry["product"]
             alert_price = entry["alert_price"]
 
             cleaned = await asyncio.to_thread(standardize_search_query, product)
-            result = await search_jumia(cleaned, browser)
+            result = await search_jumia(cleaned)
             if "error" in result:
                 # If an item is out of stock or unsearchable, it will timeout. Log it as info instead of a scary warning.
                 logger.info("Price check skipped for '%s': %s", product, result["error"])
